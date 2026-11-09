@@ -1,0 +1,307 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Shared tokens keep the museum's dark field-station palette consistent across components. */
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --font-sans: var(--app-font-sans);
+  --font-serif: var(--app-font-serif);
+  --font-mono: var(--app-font-mono);
+  --radius-lg: var(--radius);
+}
+
+:root {
+  color-scheme: dark;
+  --background: 220 20% 8%;
+  --foreground: 42 22% 90%;
+  --border: 220 13% 20%;
+  --input: 220 13% 24%;
+  --ring: 37 74% 60%;
+  --card: 220 18% 11%;
+  --card-foreground: 42 22% 90%;
+  --primary: 37 74% 60%;
+  --primary-foreground: 220 20% 8%;
+  --secondary: 220 14% 16%;
+  --secondary-foreground: 42 22% 90%;
+  --muted: 220 14% 16%;
+  --muted-foreground: 215 10% 58%;
+  --accent: 160 30% 23%;
+  --accent-foreground: 157 37% 78%;
+  --destructive: 2 62% 54%;
+  --destructive-foreground: 0 0% 100%;
+  --popover: 220 18% 11%;
+  --popover-foreground: 42 22% 90%;
+  --sidebar: 220 19% 9%;
+  --sidebar-foreground: 42 22% 90%;
+  --sidebar-border: 220 13% 20%;
+  --sidebar-primary: 37 74% 60%;
+  --sidebar-primary-foreground: 220 20% 8%;
+  --sidebar-accent: 220 14% 16%;
+  --sidebar-accent-foreground: 42 22% 90%;
+  --chart-1: 37 74% 60%;
+  --chart-2: 160 30% 53%;
+  --chart-3: 16 55% 58%;
+  --chart-4: 205 36% 58%;
+  --chart-5: 46 56% 68%;
+  --app-font-sans: "DM Sans", sans-serif;
+  --app-font-serif: "Playfair Display", Georgia, serif;
+  --app-font-mono: "DM Mono", monospace;
+  --radius: 0.8rem;
+  --button-outline: rgba(255, 255, 255, 0.1);
+  --badge-outline: rgba(255, 255, 255, 0.05);
+  --elevate-1: rgba(255, 255, 255, 0.035);
+  --elevate-2: rgba(255, 255, 255, 0.07);
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  min-width: 320px;
+  background: hsl(var(--background));
+}
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background:
+    radial-gradient(ellipse at 49% 35%, rgba(70, 83, 68, 0.1), transparent 42%),
+    hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--app-font-sans);
+  font-feature-settings: "ss01" on;
+  -webkit-font-smoothing: antialiased;
+}
+button,
+input {
+  font: inherit;
+}
+button {
+  color: inherit;
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #e5ad59;
+  outline-offset: 3px;
+}
+::selection {
+  background: rgba(222, 166, 84, 0.32);
+  color: #fff8e9;
+}
+.font-display {
+  font-family: var(--app-font-serif);
+}
+.font-mono {
+  font-family: var(--app-font-mono);
+}
+.museum-shell {
+  min-height: 100dvh;
+}
+.topbar {
+  border-bottom: 1px solid rgba(221, 218, 202, 0.1);
+  background: rgba(15, 18, 21, 0.88);
+  backdrop-filter: blur(18px);
+}
+/* Desktop gives the collection and notes fixed reading widths while the specimen stage expands. */
+.museum-grid {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr) 318px;
+  gap: 18px;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 26px 30px 44px;
+}
+.panel {
+  background: linear-gradient(
+    145deg,
+    rgba(27, 31, 32, 0.94),
+    rgba(21, 25, 27, 0.98)
+  );
+  border: 1px solid rgba(221, 218, 202, 0.1);
+  border-radius: 13px;
+}
+.species-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #444a46 transparent;
+}
+.specimen-stage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      ellipse at 50% 53%,
+      rgba(125, 116, 80, 0.17),
+      transparent 35%
+    ),
+    radial-gradient(
+      ellipse at 50% 112%,
+      rgba(87, 104, 77, 0.16),
+      transparent 45%
+    ),
+    #151a1b;
+}
+.specimen-stage:before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.25;
+  background-image:
+    linear-gradient(rgba(206, 199, 169, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(206, 199, 169, 0.12) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 22%,
+    #000 85%,
+    transparent
+  );
+}
+.specimen-stage:after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  opacity: 0.13;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.3'/%3E%3C/svg%3E");
+}
+.wireframe {
+  border: 1px solid rgba(222, 166, 84, 0.42);
+  background: rgba(8, 12, 14, 0.82);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.28);
+}
+.stage-art {
+  animation: arrive 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.species-row {
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+.species-row:hover {
+  transform: translateX(2px);
+  background: rgba(255, 255, 255, 0.035);
+}
+.species-row.active {
+  background: rgba(222, 166, 84, 0.1);
+  border-color: rgba(222, 166, 84, 0.45);
+}
+.tab-button {
+  border-bottom: 2px solid transparent;
+  transition:
+    color 0.18s ease,
+    border-color 0.18s ease;
+}
+.tab-button.selected {
+  color: #e8b56c;
+  border-color: #e8b56c;
+}
+/* Loading shimmer makes the file-check state visible without implying the mesh is already rendered. */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.045),
+    rgba(255, 255, 255, 0.09),
+    rgba(255, 255, 255, 0.045)
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s linear infinite;
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (max-width: 1120px) {
+  .museum-grid {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+  .info-panel {
+    grid-column: 2;
+  }
+}
+@media (max-width: 760px) {
+  .museum-grid {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 14px 34px;
+    gap: 14px;
+  }
+  /* Put the interactive specimen first on phones and trim the collection to a horizontal picker. */
+  .viewer-panel {
+    order: 1;
+  }
+  .species-panel {
+    order: 2;
+    min-height: auto;
+  }
+  .wireframe {
+    display: none;
+  }
+  .species-scroll {
+    display: flex;
+    overflow: auto;
+    gap: 8px;
+    padding-bottom: 3px;
+  }
+  .species-row {
+    flex: 0 0 auto;
+    width: auto !important;
+    padding: 8px 12px !important;
+  }
+  .species-row .species-meta {
+    display: none;
+  }
+  .info-panel {
+    order: 3;
+  }
+  .specimen-stage {
+    min-height: 390px !important;
+  }
+  .topbar-inner {
+    padding: 0 16px !important;
+  }
+  .brand-subtitle {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *:before,
+  *:after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
