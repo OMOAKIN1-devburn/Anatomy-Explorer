@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { species, type AnatomyLayer, type SpeciesRecord } from './data/species';
+import { species, type SpeciesRecord } from './data/species';
 import { InfoRow } from './components/InfoRow';
 import { MiniBlueprint } from './components/MiniBlueprint';
 import { SpecimenViewer, type ViewerCommand, type ViewerCommandType } from './components/SpecimenViewer';
+import { ExplorerBackdrop} from './components/ExplorerBackdrop';
+import { Credits } from './components/Credits';
 
 type Availability = 'checking' | 'ready' | 'missing' | 'error';
 
@@ -13,12 +15,6 @@ const TABS = [
   { id: 'facts', label: 'Facts' },
 ] as const;
 type TabId = (typeof TABS)[number]['id'];
-
-const LAYERS: { id: AnatomyLayer; label: string; icon: string }[] = [
-  { id: 'outerBody', label: 'Outer body', icon: 'fa-cube' },
-  { id: 'muscles', label: 'Muscles', icon: 'fa-dumbbell' },
-  { id: 'skeleton', label: 'Skeleton', icon: 'fa-bone' },
-];
 
 // Small helper so every Font Awesome icon has the same fixed width and is hidden from screen readers.
 const Icon = ({ name, className = '' }: { name: string; className?: string }) => (
@@ -31,12 +27,11 @@ function App() {
   const [query, setQuery] = useState('');
   const [habitatFilter, setHabitatFilter] = useState('All habitats');
 
-  // Profile state: open information tab and focused body region.
+  // Profile state: open information tab and focused body hotspot.
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
 
   // Viewer state: layer, asset check result, retry counter, and the last camera command.
-  const [activeLayer, setActiveLayer] = useState<AnatomyLayer>('outerBody');
   const [availability, setAvailability] = useState<Availability>('checking');
   const [attempt, setAttempt] = useState(0);
   const [viewerCommand, setViewerCommand] = useState<ViewerCommand>(null);
@@ -45,8 +40,8 @@ function App() {
   const [showAbout, setShowAbout] = useState(false);
 
   const activeSpecies = species.find((item) => item.id === activeSpeciesId) ?? species[0];
-  const regions = activeSpecies.regions ?? [];
-  const selectedRegion = regions.find((region) => region.id === selectedRegionId);
+  const hotspots = activeSpecies.hotspots ?? [];
+  const selectedHotspot = hotspots.find((hotspot) => hotspot.id === selectedRegionId);
 
   const habitats = useMemo(() => ['All habitats', ...new Set(species.map((item) => item.habitat.split(',')[0]))], []);
   const filteredSpecies = useMemo(() => species.filter((item) => {
@@ -85,7 +80,6 @@ function App() {
     setActiveSpeciesId(entry.id);
     setSelectedRegionId(null);
     setActiveTab('overview');
-    setActiveLayer('outerBody');
     setViewerCommand(null);
   };
 
@@ -97,6 +91,7 @@ function App() {
 
   return (
     <main className="museum-shell">
+      <ExplorerBackdrop />
       <header className="topbar sticky top-0 z-20">
         <div className="topbar-inner mx-auto flex h-[68px] max-w-[1600px] items-center justify-between px-[30px]">
           <div className="flex items-center gap-3">
@@ -105,7 +100,7 @@ function App() {
             </div>
             <div>
               <div className="font-display text-[18px] leading-5 tracking-[.01em] text-[#efe8d9]">Wildlife Anatomy Museum</div>
-              <div className="brand-subtitle mt-0.5 font-mono text-[10px] uppercase tracking-[.18em] text-[#9aa097]">A field guide beneath the surface</div>
+              <div className="brand-subtitle mt-0.5 font-mono text-[10px] uppercase tracking-[.18em] text-[#9aa097]">Explore wildlife, one body part at a time</div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -147,7 +142,7 @@ function App() {
             </select>
             <Icon name="fa-chevron-down" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-[#939991]" />
           </label>
-          <div className="species-scroll flex-1 space-y-1 overflow-y-auto pr-1" aria-label="Available species">
+          <div className="species-scroll min-h-[260px] max-h-[55vh] space-y-1 overflow-y-auto pr-1" aria-label="Available species">
             {filteredSpecies.map((entry) => {
               const active = activeSpeciesId === entry.id;
               return (
@@ -158,6 +153,7 @@ function App() {
                   <span className="min-w-0 flex-1">
                     <span className={`block text-[12px] ${active ? 'text-[#f0e6d4]' : 'text-[#c6c6bb]'}`}>{entry.name}</span>
                     <span className="species-meta mt-0.5 block truncate font-mono text-[10px] text-[#8e948d]">{entry.scientificName}</span>
+                    <span className="mt-0.5 block truncate text-[10px] text-[#d8a75d]"><Icon name="fa-mountain" className="mr-1" />{entry.habitat.split(',')[0]}</span>
                   </span>
                   {entry.modelAvailable && <span title={`${entry.name} 3D model available`} className="h-1.5 w-1.5 rounded-full bg-[#d8a75d]" />}
                 </button>
@@ -198,7 +194,7 @@ function App() {
 
           <div className="specimen-stage min-h-[460px]">
             {availability === 'ready' ? (
-              <SpecimenViewer species={activeSpecies} command={viewerCommand} attempt={attempt} onSelectRegion={setSelectedRegionId} onRetry={() => setAttempt((value) => value + 1)} />
+              <SpecimenViewer species={activeSpecies} command={viewerCommand} attempt={attempt} selectedId={selectedRegionId} onSelect={setSelectedRegionId} onRetry={() => setAttempt((value) => value + 1)} />
             ) : availability === 'checking' ? (
               <div className="absolute inset-0 z-[2] flex flex-col items-center justify-center gap-4">
                 <div className="skeleton h-44 w-44 rounded-full opacity-60" />
@@ -239,7 +235,7 @@ function App() {
             {availability === 'ready' && (
               <div className="pointer-events-none absolute bottom-4 left-4 z-[4] flex items-center gap-2 rounded border border-white/[.08] bg-[#0d1112]/75 px-2.5 py-1.5 font-mono text-[10px] text-[#aab0a5]">
                 <Icon name="fa-hand-pointer" className="text-[11px]" /> DRAG TO ROTATE <span className="mx-1 text-white/20">/</span> SCROLL TO ZOOM
-                {regions.length > 0 && <><span className="mx-1 text-white/20">/</span> CLICK A REGION</>}
+                {hotspots.length > 0 && <><span className="mx-1 text-white/20">/</span> CLICK A DOT</>}
               </div>
             )}
             {availability === 'ready' && (
@@ -250,50 +246,27 @@ function App() {
             )}
           </div>
 
-          {/* Body focus: only regions that this species' model really defines. */}
+          {/* Body focus: only hotspots that this species' model really defines. */}
           <div className="flex flex-wrap items-center justify-between gap-y-3 border-t border-white/[.07] px-5 py-3">
             <div className="flex items-center gap-2 text-[11px] text-[#9ea49c]"><Icon name="fa-eye" className="text-[12px]" /><span>Body focus</span><span className="text-white/20">/</span>
-              <span className="font-mono text-[#cdb282]">{selectedRegion ? selectedRegion.name : 'None selected'}</span>
+              <span className="font-mono text-[#cdb282]">{selectedHotspot ? selectedHotspot.name : 'None selected'}</span>
             </div>
             <div className="flex max-w-full gap-1 overflow-x-auto">
-              {availability === 'ready' && regions.length > 0 ? regions.map((region) => (
-                <button key={region.id} onClick={() => setSelectedRegionId(selectedRegionId === region.id ? null : region.id)} aria-pressed={selectedRegionId === region.id} className={`shrink-0 rounded border px-2 py-1.5 text-[10px] transition-colors ${selectedRegionId === region.id ? 'border-[#c99a58]/50 bg-[#c99a58]/10 text-[#e3ba78]' : 'border-white/[.08] text-[#aaaea4] hover:bg-white/[.04]'}`} data-testid={`button-part-${region.id}`}>{region.name}</button>
+              {availability === 'ready' && hotspots.length > 0 ? hotspots.map((hotspot) => (
+                <button key={hotspot.id} onClick={() => setSelectedRegionId(selectedRegionId === hotspot.id ? null : hotspot.id)} aria-pressed={selectedRegionId === hotspot.id} className={`shrink-0 rounded border px-2 py-1.5 text-[10px] transition-colors ${selectedRegionId === hotspot.id ? 'border-[#c99a58]/50 bg-[#c99a58]/10 text-[#e3ba78]' : 'border-white/[.08] text-[#aaaea4] hover:bg-white/[.04]'}`} data-testid={`button-part-${hotspot.id}`}>{hotspot.name}</button>
               )) : (
                 <span className="self-center text-[11px] text-[#868d86]">
-                  {availability === 'ready' ? 'No body regions are defined for this model yet.' : 'Body focus is unavailable until a model is added.'}
+                  {availability === 'ready' ? 'No dots are placed on this model yet.' : 'Body focus is unavailable until a model is added.'}
                 </span>
               )}
             </div>
           </div>
-          {selectedRegion && (
+          {selectedHotspot && (
             <div className="flex items-start gap-2 border-t border-white/[.06] bg-[#c99a58]/[.035] px-5 py-2.5 text-[11px] leading-4 text-[#bdbcaf]">
-              <Icon name="fa-circle-info" className="mt-0.5 shrink-0 text-[12px] text-[#d4aa69]" />{selectedRegion.note}
+              <Icon name="fa-circle-info" className="mt-0.5 shrink-0 text-[12px] text-[#d4aa69]" />
+              <span><strong className="text-[#e8d2a6]">{selectedHotspot.name}.</strong> {selectedHotspot.note}</span>
             </div>
           )}
-
-          {/* Anatomy layers. Note: the viewer does not switch layers yet; only the outer body exists. */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[.07] px-5 py-3">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 font-mono text-[10px] uppercase tracking-[.12em] text-[#868e88]">Anatomy layer</span>
-              {LAYERS.map((layer) => {
-                const isAvailable = (activeSpecies.availableLayers ?? []).includes(layer.id);
-                const isSelected = activeLayer === layer.id && isAvailable;
-                return (
-                  <button key={layer.id} type="button" disabled={!isAvailable} aria-pressed={isSelected}
-                    title={isAvailable ? `Show the ${layer.label.toLowerCase()} layer` : `${layer.label} layer is not included in this model`}
-                    onClick={() => setActiveLayer(layer.id)}
-                    className={`rounded border px-2 py-1.5 text-[10px] transition-colors ${isSelected ? 'border-[#c99a58]/50 bg-[#c99a58]/10 text-[#e3ba78]' : 'border-white/[.08] text-[#8f968f] disabled:cursor-not-allowed disabled:opacity-60'}`}
-                    data-testid={`button-layer-${layer.id}`}>
-                    <Icon name={layer.icon} className="mr-1 text-[10px]" />{layer.label}{!isAvailable && <span className="ml-1 text-[#7c837d]">· unavailable</span>}
-                  </button>
-                );
-              })}
-              <button type="button" disabled title="Exploded views require a verified multi-layer model" className="rounded border border-dashed border-white/[.08] px-2 py-1.5 text-[10px] text-[#7c837d] disabled:cursor-not-allowed" data-testid="button-exploded-view">
-                <Icon name="fa-maximize" className="mr-1 text-[10px]" />Exploded view · planned
-              </button>
-            </div>
-            <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[.1em] text-[#868e88]"><Icon name="fa-shield-halved" className="text-[11px]" /> Model-specific only</span>
-          </div>
         </section>
 
         {/* ---------- Right: species profile ---------- */}
@@ -348,6 +321,7 @@ function App() {
           </div>
         </aside>
       </div>
+      <Credits />
     </main>
   );
 }

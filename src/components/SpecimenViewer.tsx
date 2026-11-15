@@ -1,10 +1,10 @@
 import { Component, Suspense, useEffect, useMemo, useRef } from 'react';
 import type { ComponentRef, ErrorInfo, ReactNode, RefObject } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import type { ThreeEvent } from '@react-three/fiber';
 import { Html, OrbitControls, useAnimations, useGLTF } from '@react-three/drei';
-import { Box3, MathUtils, Vector3 } from 'three';
-import type { SpeciesRecord } from '@/data/species';
+import { Box3, Group, MathUtils, Vector3 } from 'three';
+import type { Hotspot, SpeciesRecord } from '@/data/species';
 
 // Camera limits shared by the mouse wheel (OrbitControls) and the +/- buttons.
 const MIN_DISTANCE = 2.1;
@@ -13,6 +13,10 @@ const MAX_DISTANCE = 8;
 const MODEL_TARGET_SIZE = 2.6;
 // The floor of the model sits at this height so it appears to stand on the stage.
 const GROUND_Y = -1.15;
+
+// Set to true while placing dots: click the model and the browser console prints
+// a position and normal you can paste into species.ts. Set back to false when done.
+const HOTSPOT_PLACEMENT_MODE = true;
 
 export type ViewerCommandType = 'zoomIn' | 'zoomOut' | 'reset';
 /** The id changes on every click so pressing the same button twice still fires. */
@@ -24,7 +28,8 @@ type SpecimenViewerProps = {
   species: SpeciesRecord;
   command: ViewerCommand;
   attempt: number;
-  onSelectRegion: (regionId: string) => void;
+  selectedId: string | null;
+  onSelect: (hotspotId: string) => void;
   onRetry: () => void;
 };
 
@@ -32,31 +37,35 @@ type SpecimenViewerProps = {
  * Owns the 3D canvas and its recovery boundary, so a WebGL or GLB error
  * cannot take down the rest of the museum interface.
  */
-export function SpecimenViewer({ species, command, attempt, onSelectRegion, onRetry }: SpecimenViewerProps) {
+export function SpecimenViewer({ species, command, attempt, selectedId, onSelect, onRetry }: SpecimenViewerProps) {
   const handleReset = () => {
     // useGLTF caches results, even failed ones, so clear the cache before retrying.
     if (species.modelPath) useGLTF.clear(species.modelPath);
     onRetry();
   };
 
+  const selected = species.hotspots?.find((h) => h.id === selectedId);
   return (
     // The key remounts the whole viewer when the species changes or a retry happens.
     <ViewerErrorBoundary key={`${species.id}-${attempt}`} species={species} onReset={handleReset}>
       <div className="absolute inset-0 z-[1]">
-        <ModelCanvas species={species} command={command} onSelectRegion={onSelectRegion} />
+        <ModelCanvas species={species} command={command} selectedId={selectedId} onSelect={onSelect} />
+        {selected && (
+          <div className="absolute left-3 top-3 z-10 max-w-[250px] rounded-lg border border-[#e5ad59]/40 bg-[#0c0f18]/90 px-3 py-2 text-xs leading-5 text-[#e9e2d5]">
+            <strong className="text-[#e8b56c]">{selected.name}.</strong> {selected.note}
+         </div>
+        )}
       </div>
     </ViewerErrorBoundary>
   );
 }
 
-/**
- * Loads the species' GLB and uses its named rig joints only to identify
- * approximate exterior regions. The rig is never displayed as anatomy.
- */
-function SpecimenModel({ species, onSelectRegion }: { species: SpeciesRecord; onSelectRegion: (regionId: string) => void }) {
+/** Loads the species' GLB, fits it on the stage, and places the clickable dots on it. */
+function SpecimenModel({ species, selectedId, onSelect }: { species: SpeciesRecord; selectedId: string | null; onSelect: (hotspotId: string) => void }) {
   // The viewer is only rendered once modelPath has been checked, so the "!" is safe.
   const { scene, animations } = useGLTF(species.modelPath!);
   const { actions } = useAnimations(animations, scene);
+  const groupRef = useRef<Group>(null);
 
   // Play the clip by its authored name. If the file has no such clip the model simply stays still.
   useEffect(() => {
@@ -65,20 +74,10 @@ function SpecimenModel({ species, onSelectRegion }: { species: SpeciesRecord; on
     return () => { clip?.fadeOut(0.2); };
   }, [actions, species.idleClip]);
 
-  // TEMPORARY: print the name of every part in the model to the browser console (F12)
-  // so we can see what this specific file contains. Remove it once the names are noted.
-  useEffect(() => {
-    const names: string[] = [];
-    scene.traverse((object) => {
-      if (object.name) names.push(`${object.type}: ${object.name}`);
-    });
-    console.log(`[${species.id}] parts in model:`, names);
-  }, [scene, species.id]);
-
   // Measure the model once and work out the scale and offset that fit it on the
-  // stage, so models of very different sizes all appear centred and similar in size.
+  // stage. The box is kept because dot positions are stored as fractions of it.
   const fit = useMemo(() => {
-    const box = new Box3().setFromObject(scene);
+    const box = new Box3().setFromObject(scene, species.hotspotSpace === 'model');
     const size = box.getSize(new Vector3());
     const center = box.getCenter(new Vector3());
     const longestSide = Math.max(size.x, size.y, size.z) || 1;
@@ -88,34 +87,101 @@ function SpecimenModel({ species, onSelectRegion }: { species: SpeciesRecord; on
       GROUND_Y - box.min.y * scale,
       -center.z * scale,
     ];
-    return { scale, position };
+    return { scale, position, box };
   }, [scene]);
 
+  // Placement helper: turns a click on the model into numbers for species.ts.
   const handleModelClick = (event: ThreeEvent<MouseEvent>) => {
-    event.stopPropagation();
+  if (!HOTSPOT_PLACEMENT_MODE || !groupRef.current || !event.face) return;
+  event.stopPropagation();
+  const local = groupRef.current.worldToLocal(event.point.clone());
+  const size = fit.box.getSize(new Vector3());
+  const round = (value: number) => Math.round(value * 10000) / 10000;
+  const exact = species.hotspotSpace === 'model';
+  const position = exact
+    ? [local.x, local.y, local.z]
+    : [
+        (local.x - fit.box.min.x) / size.x,
+        (local.y - fit.box.min.y) / size.y,
+        (local.z - fit.box.min.z) / size.z,
+      ];
+  const normal = event.face.normal.clone().transformDirection(event.object.matrixWorld);
+  const line = `position: [${position.map(round).join(', ')}], normal: [${[normal.x, normal.y, normal.z].map(round).join(', ')}],`;
+  console.log(`[${species.id}] ${line}`);
+  navigator.clipboard?.writeText(line).catch(() => {});
+};
+return (
+  <group ref={groupRef} position={fit.position} scale={fit.scale}>
+    <primitive object={scene} onClick={handleModelClick} />
+    <HotspotPins hotspots={species.hotspots ?? []} box={fit.box} exact={species.hotspotSpace === 'model'} selectedId={selectedId} onSelect={onSelect} />
+  </group>
+);
+}
 
-    // Find the region whose rig joint is nearest to the click point. This does
-    // not claim the GLB has a separate mesh for each region.
-    scene.updateWorldMatrix(true, true);
-    let nearestRegionId: string | null = null;
-    let nearestDistance = Number.POSITIVE_INFINITY;
+/**
+ * Draws one pin per hotspot. Pins live inside the model's group, so they turn
+ * with it. Every frame, a pin whose surface faces away from the camera is hidden.
+ */
+function HotspotPins({ hotspots, box, exact, selectedId, onSelect }: { hotspots: Hotspot[]; box: Box3; exact: boolean; selectedId: string | null; onSelect: (hotspotId: string) => void }) {
+  const camera = useThree((state) => state.camera);
+  const groupRef = useRef<Group>(null);
+  const pinRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const scratch = useMemo(() => ({ world: new Vector3(), toCamera: new Vector3() }), []);
 
-    for (const region of species.regions ?? []) {
-      const bone = scene.getObjectByName(region.boneName);
-      if (!bone) continue; // The bone name may not exist in this file; skip it.
-      const distance = bone.getWorldPosition(new Vector3()).distanceTo(event.point);
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearestRegionId = region.id;
+  const pins = useMemo(() => {
+    const size = box.getSize(new Vector3());
+    return hotspots.map((hotspot) => ({
+      hotspot,
+      position: exact
+        ? new Vector3(...hotspot.position)
+        : new Vector3(
+            box.min.x + size.x * hotspot.position[0],
+            box.min.y + size.y * hotspot.position[1],
+            box.min.z + size.z * hotspot.position[2],
+          ),
+      normal: new Vector3(...hotspot.normal).normalize(),
+    }));
+  }, [hotspots, box, exact]);
+
+  useFrame(() => {
+    const group = groupRef.current;
+    if (!group) return;
+    for (const pin of pins) {
+      const element = pinRefs.current[pin.hotspot.id];
+      if (!element) continue;
+      group.localToWorld(scratch.world.copy(pin.position));
+      scratch.toCamera.copy(camera.position).sub(scratch.world);
+      const facing = scratch.toCamera.dot(pin.normal) > 0;
+      const value = facing ? '1' : '0';
+      if (element.dataset.visible !== value) {
+        element.dataset.visible = value;
+        element.style.opacity = value;
+        element.style.pointerEvents = facing ? 'auto' : 'none';
       }
     }
-    // If no joint was found, select nothing rather than guessing a region.
-    if (nearestRegionId) onSelectRegion(nearestRegionId);
-  };
+  });
 
   return (
-    <group position={fit.position} scale={fit.scale}>
-      <primitive object={scene} onClick={handleModelClick} />
+    <group ref={groupRef}>
+      {pins.map(({ hotspot, position }) => {
+        const selected = selectedId === hotspot.id;
+        return (
+          <Html key={hotspot.id} position={position} center zIndexRange={[20, 0]}>
+            <button
+              type="button"
+              ref={(element) => { pinRefs.current[hotspot.id] = element; }}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => onSelect(hotspot.id)}
+              aria-label={`${hotspot.name}: show explanation`}
+              title={hotspot.name}
+              className="grid h-10 w-10 cursor-pointer place-items-center transition-opacity"
+            >
+              {selected && <span className="absolute h-7 w-7 animate-ping rounded-full bg-[#e5ad59]/40" />}
+              <span className={`relative rounded-full border-2 border-[#151a1b] ${selected ? 'h-4 w-4 bg-white' : 'h-3.5 w-3.5 bg-[#e5ad59]'}`} />
+            </button>
+          </Html>
+        );
+      })}
     </group>
   );
 }
@@ -132,7 +198,8 @@ function CameraCommands({ command, controlsRef }: { command: ViewerCommand; cont
     if (!command || !controls) return;
 
     if (command.type === 'reset') {
-      controls.reset(); // Back to the camera position the viewer started with.
+      controls.reset();
+      controls.update(); // applies it immediately, so nothing keeps drifting
       return;
     }
 
@@ -146,16 +213,16 @@ function CameraCommands({ command, controlsRef }: { command: ViewerCommand; cont
   return null;
 }
 
-function ModelCanvas({ species, command, onSelectRegion }: { species: SpeciesRecord; command: ViewerCommand; onSelectRegion: (regionId: string) => void }) {
+function ModelCanvas({ species, command, selectedId, onSelect }: { species: SpeciesRecord; command: ViewerCommand; selectedId: string | null; onSelect: (hotspotId: string) => void }) {
   const controlsRef = useRef<OrbitControlsHandle>(null);
 
   return (
     // Canvas creates the WebGL renderer. OrbitControls turns pointer drag and
     // the scroll wheel into camera rotation and distance.
-    <Canvas camera={{ position: [0, 1.1, 4.7], fov: 38 }} dpr={[1, 1.6]} gl={{ antialias: true, alpha: true }}>
-      <ambientLight intensity={1.5} />
-      <directionalLight position={[3, 5, 4]} intensity={2.5} />
-      <directionalLight position={[-4, 1, -2]} intensity={1.15} color="#d49a53" />
+    <Canvas camera={{ position: [0, 1.2, 5.4], fov: 38 }} dpr={[1, 1.6]} gl={{ antialias: true, alpha: true }}>
+      <ambientLight intensity={0.55} />
+      <directionalLight position={[3, 5, 4]} intensity={1.1} />
+      <directionalLight position={[-4, 1, -2]} intensity={0.45} color="#d49a53" />
       <Suspense
         fallback={
           <Html center>
@@ -165,9 +232,9 @@ function ModelCanvas({ species, command, onSelectRegion }: { species: SpeciesRec
           </Html>
         }
       >
-        <SpecimenModel species={species} onSelectRegion={onSelectRegion} />
+        <SpecimenModel species={species} selectedId={selectedId} onSelect={onSelect} />
       </Suspense>
-      <OrbitControls ref={controlsRef} enablePan={false} minDistance={MIN_DISTANCE} maxDistance={MAX_DISTANCE} target={[0, 0, 0]} />
+      <OrbitControls ref={controlsRef} enablePan={false} enableDamping={false} minDistance={MIN_DISTANCE} maxDistance={MAX_DISTANCE} target={[0, 0, 0]} />
       <CameraCommands command={command} controlsRef={controlsRef} />
     </Canvas>
   );
@@ -204,7 +271,7 @@ class ViewerErrorBoundary extends Component<BoundaryProps, BoundaryState> {
           <p className="max-w-xs text-xs leading-5 text-[#a9ada8]">
             {this.state.graphicsUnavailable
               ? 'This browser could not create a WebGL context. Try a browser with graphics acceleration enabled.'
-              : `Check that ${species.modelPath} is a valid glTF binary, then try again.`}
+              : `Check that ${species.modelPath} is a valid glTF file, then try again.`}
           </p>
           <button onClick={onReset} className="mt-1 rounded-md border border-white/15 px-3 py-2 text-xs hover:bg-white/5" data-testid="button-retry-model">
             <i className="fa-solid fa-rotate-right mr-2" aria-hidden="true" />Retry model
