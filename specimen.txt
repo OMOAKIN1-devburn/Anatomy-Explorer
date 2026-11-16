@@ -1,0 +1,219 @@
+Where we are. Of the six items we agreed (2 to 7), your photos show two done: the credits already link properly, and Contact.tsx exists. I haven’t seen the rest, so tell me which of these you’ve finished:
+
+The labels button
+Removing the schematic card
+Shrinking the models
+The share preview in index.html
+
+This message adds three new items:
+
+Remembering where the visitor stopped
+Individual credits for each model
+The how-to popup
+
+Summary of everything so far
+
+Moved from Replit to your laptop (Vite, React, TypeScript, Tailwind, Three.js, offline icons) and fixed the old graphics-chip problem.
+Ten specimens loaded: lion, elephant, giraffe, kangaroo, tiger, wolf, chimpanzee, hippo, crocodile and human, all CC BY 4.0, with credits.
+Re-placed all dots by clicking the real body parts, and removed the duplicates.
+Fixed dots vanishing when you return to an animal, and changed the wheel so it no longer zooms while you scroll the page.
+Converted the wolf and kangaroo so their colours show.
+Added a sunset backdrop, a new tagline, a contact section, a README and a plan for the live demo.
+Fix first
+
+In Credits.tsx, two small things:
+
+Line 85: author: ' CAPTAAINRO', has a space before the name. Remove it, so it reads author: 'CAPTAAINRO',.
+Line 59: the chimp link has a capital M in chimpanzee-Monkey. Make it lowercase: chimpanzee-monkey-3d-model-free-24b5305fd671484d90d0f0c7f051ea17, as in your license.txt.
+Part 1: remember where the visitor stopped
+
+This saves the animal, the tab, the labels on or off, and the selected dot in the visitor’s own browser. It’s remembered on the same phone or browser only.
+
+Step 1. Make a new folder src/hooks. Right-click src, choose New Folder, and name it hooks. Inside it, create usePersistentState.ts:
+
+import { useEffect, useState } from 'react';
+
+/** Works like useState, but remembers the value in this browser between visits. */
+export function usePersistentState<T>(key: string, initial: T) {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const saved = window.localStorage.getItem(key);
+      return saved !== null ? (JSON.parse(saved) as T) : initial;
+    } catch {
+      return initial;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // Storage can be blocked (private mode). The page still works without it.
+    }
+  }, [key, value]);
+
+  return [value, setValue] as const;
+}
+
+Step 2. In App.tsx, add this with the other imports at the top:
+
+import { usePersistentState } from './hooks/usePersistentState';
+
+Step 3. Replace four lines in App.tsx. Use Ctrl+F for each one.
+
+Search for	Replace the whole line with
+const [activeSpeciesId	const [activeSpeciesId, setActiveSpeciesId] = usePersistentState('wam-species', 'lion');
+const [activeTab	const [activeTab, setActiveTab] = usePersistentState<TabId>('wam-tab', 'overview');
+const [selectedRegionId	const [selectedRegionId, setSelectedRegionId] = usePersistentState<string | null>('wam-dot', null);
+const [showLabels	const [showLabels, setShowLabels] = usePersistentState('wam-labels', false);
+
+In the third row, type a plain | in the file. Don’t type the backslash.
+
+Step 4: safety check. Search species.find( in App.tsx. The line that finds the active species should end with ?? species[0], for example:
+
+const activeSpecies = species.find((item) => item.id === activeSpeciesId) ?? species[0];
+
+This stops the page going blank if a saved animal ever disappears. If your line differs, send me a photo of it.
+
+Part 2: each model’s own credit
+
+Each animal’s credit shows in its profile panel. The full list at the bottom stays too, for completeness.
+
+In Credits.tsx, edit 1. Add one line under the title: line of each entry, using this table:
+
+Entry title	Add under it
+Realistic_Lion 3D_model_of_texture_fbx speciesId: 'lion',
+Elephant speciesId: 'elephant',
+Giraffe_Textured speciesId: 'giraffe',
+Kangaroo speciesId: 'kangaroo',
+Tiger	speciesId: 'tiger',
+Wolf speciesId: 'wolf',
+chimpanzee Monkey 3d model free	speciesId: 'monkey',
+Hippopotamus speciesId: 'hippopotamus',
+Crocodile 3d model free	speciesId: 'crocodile',
+Perfect Human Body speciesId: 'human',
+
+Edit 2. Right under the line const link = '...'; (line 93), and above export function Credits(), paste:
+
+export function ModelCredit({ speciesId }: { speciesId: string }) {
+  const credit = CREDITS.find((item) => item.speciesId === speciesId);
+  if (!credit) return null;
+
+  return (
+    <section className="mt-4 rounded-xl border border-white/10 bg-[#0c0f18]/60 p-4 text-sm leading-6 text-[#d8d1c2]" aria-label="Model credit">
+      <h3 className="font-mono text-xs uppercase tracking-widest text-[#e8b56c]">Model credit</h3>
+      <p className="mt-1">
+        “<a className={link} href={credit.sourceUrl} target="_blank" rel="noopener noreferrer">{credit.title}</a>” by{' '}
+        <a className={link} href={credit.authorUrl} target="_blank" rel="noopener noreferrer">{credit.author}</a>, licensed under{' '}
+        <a className={link} href={credit.licenseUrl} target="_blank" rel="noopener noreferrer">{credit.license}</a>.
+        {' '}Converted and resized for web display.
+      </p>
+    </section>
+  );
+}
+
+In App.tsx
+
+Change the import to include it: import { Credits, ModelCredit } from './components/Credits'; (match how your current Credits import is written, and add ModelCredit to it).
+Search did you know and find that block in the species profile panel. Right after the closing </div> of that block, add: <ModelCredit speciesId={activeSpecies.id} />.
+If you can’t tell where the block ends, send me a photo of that area.
+Part 3: how-to popup
+
+It opens automatically on a first visit and closes with a “Got it” button. After that, the ? button in the header reopens it. The wording is short and plain.
+
+New file src/components/HowToDialog.tsx:
+
+import { useEffect } from 'react';
+
+const STEPS = [
+  { icon: 'fa-hand-pointer', title: 'Choose a specimen', text: 'Pick an animal, or the human, from the collection.' },
+  { icon: 'fa-arrows-rotate', title: 'Look around', text: 'Drag to rotate. Use the + and − buttons, or hold Ctrl and scroll, to zoom.' },
+  { icon: 'fa-tags', title: 'Show the labels', text: 'Press “Click here to see the labels” above the specimen. Dots appear on the body parts.' },
+  { icon: 'fa-book-open', title: 'Learn', text: 'Tap a dot to read about that body part. The profile shows habitat, diet and facts.' },
+] as const;
+
+export function HowToDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 px-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="howto-title"
+        onClick={(event) => event.stopPropagation()}
+        className="panel max-h-[90dvh] w-full max-w-lg overflow-y-auto p-6"
+      >
+        <p className="font-mono text-xs uppercase tracking-[.16em] text-[#e5ad59]">Quick guide</p>
+        <h2 id="howto-title" className="font-display mt-1 text-2xl text-[#f0e8d8]">How to use the museum</h2>
+        <ol className="mt-5 space-y-4">
+          {STEPS.map((step, index) => (
+            <li key={step.title} className="flex gap-4">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[#e5ad59]/50 bg-[#111617] text-[#e5ad59]">
+                <i className={`fa-solid ${step.icon}`} aria-hidden="true" />
+              </span>
+              <div>
+                <p className="text-base font-semibold text-[#f0e8d8]">{index + 1}. {step.title}</p>
+                <p className="mt-0.5 text-sm leading-6 text-[#cfc8b8]">{step.text}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-5 text-sm text-[#a9ada8]">Your place is saved, so you can continue where you left off.</p>
+        <button
+          type="button"
+          onClick={onClose}
+          autoFocus
+          className="mt-5 w-full rounded-full border border-[#e5ad59]/60 bg-[#111617]/90 px-5 py-3 text-sm font-semibold text-[#f0dcae] hover:bg-[#1c2326]"
+        >
+          Got it
+        </button>
+      </div>
+    </div>
+  );
+}
+
+In App.tsx
+
+Add the import: import { HowToDialog } from './components/HowToDialog';
+Under your other state lines, add:
+const [helpOpen, setHelpOpen] = useState(() => {
+  try {
+    return window.localStorage.getItem('wam-help-seen') !== '1';
+  } catch {
+    return false;
+  }
+});
+const closeHelp = () => {
+  setHelpOpen(false);
+  try {
+    window.localStorage.setItem('wam-help-seen', '1');
+  } catch {
+    // Ignore: the guide will simply show again next visit.
+  }
+};
+Right under <Contact /> (or <Credits /> if you haven’t added Contact yet), add:
+<HowToDialog open={helpOpen} onClose={closeHelp} />
+Search question in App.tsx to find the ? button in the header. Add onClick={() => setHelpOpen(true)} to that button. If it isn’t a <button>, send me a photo of the header area.
+Test
+Refresh. The guide should open on the first visit, and “Got it” closes it.
+Pick the kangaroo, turn labels on, tap a dot, and refresh. You should come back to the same view.
+Click through all ten animals. Each should show its own “Model credit” under the profile.
+Look at the credits at the bottom. They should still be there.
+
+If the page goes blank, press F12, open the Console, and type localStorage.clear(), then refresh. Photograph any red error if it persists.
+
+About the screenshot
+
+You can take one on your laptop too. Press Windows + Shift + S, drag over the area, and it copies. Open Paint, paste, and save as PNG. If you’d rather use the phone later, that’s fine.
+
+Tell me which of the earlier items you finished, and send photos of anything that didn’t match, especially the ? button area and the “Did you know” block.

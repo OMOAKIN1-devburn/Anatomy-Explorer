@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { species, type SpeciesRecord } from './data/species';
 import { InfoRow } from './components/InfoRow';
-import { MiniBlueprint } from './components/MiniBlueprint';
 import { SpecimenViewer, type ViewerCommand, type ViewerCommandType } from './components/SpecimenViewer';
 import { ExplorerBackdrop} from './components/ExplorerBackdrop';
-import { Credits } from './components/Credits';
+import { Credits, ModelCredit } from './components/Credits';
+import { Contact } from './components/Contact';
+import { usePersistentState } from './hooks/usePersistentState';
+import { HowToDialog } from './components/HowToDialog';
 
 type Availability = 'checking' | 'ready' | 'missing' | 'error';
 
@@ -23,13 +25,30 @@ const Icon = ({ name, className = '' }: { name: string; className?: string }) =>
 
 function App() {
   // Collection state: selected species and gallery filters.
-  const [activeSpeciesId, setActiveSpeciesId] = useState('lion');
+  const [activeSpeciesId, setActiveSpeciesId] = usePersistentState('wam-species', 'lion');
   const [query, setQuery] = useState('');
   const [habitatFilter, setHabitatFilter] = useState('All habitats');
 
   // Profile state: open information tab and focused body hotspot.
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
-  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = usePersistentState<TabId>('wam-tab', 'overview');
+  const [selectedRegionId, setSelectedRegionId] = usePersistentState<string | null>('wam-dot', null);
+  const [showLabels, setShowLabels] = usePersistentState('wam-labels', false);
+
+  const [helpOpen, setHelpOpen] = useState(() => {
+  try {
+    return window.localStorage.getItem('wam-help-seen') !== '1';
+  } catch {
+    return false;
+  }
+});
+const closeHelp = () => {
+  setHelpOpen(false);
+  try {
+    window.localStorage.setItem('wam-help-seen', '1');
+  } catch {
+    // Ignore: the guide will simply show again next visit.
+  }
+};
 
   // Viewer state: layer, asset check result, retry counter, and the last camera command.
   const [availability, setAvailability] = useState<Availability>('checking');
@@ -108,14 +127,13 @@ function App() {
               <span className="h-1.5 w-1.5 rounded-full bg-[#87a47c]" /> LEARNING COLLECTION
             </div>
             <button
-              onClick={() => setShowAbout((value) => !value)}
-              aria-expanded={showAbout}
               aria-label="About this museum"
               title="About this museum"
               className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-[#b1b2a9] hover:bg-white/5"
               data-testid="button-about"
+              onClick={() => setHelpOpen(true)}
             >
-              <Icon name={showAbout ? 'fa-xmark' : 'fa-circle-question'} className="text-[16px]" />
+              <Icon name="fa-circle-question" className="text-[16px]" />
             </button>
           </div>
         </div>
@@ -167,7 +185,6 @@ function App() {
               </div>
             )}
           </div>
-          <MiniBlueprint />
         </aside>
 
         {/* ---------- Centre: specimen viewer ---------- */}
@@ -192,7 +209,18 @@ function App() {
             </div>
           </div>
 
-          <div className="specimen-stage min-h-[460px]">
+          <div className={`specimen-stage min-h-[460px] ${showLabels ? '' : 'labels-off'}`}>
+            {availability === 'ready' && (
+               <button
+               type="button"
+               onClick={() => setShowLabels((value) => !value)}
+               aria-pressed={showLabels}
+               className="absolute right-3 top-3 z-[5] flex items-center gap-2 rounded-full border border-[#e5ad59]/60 bg-[#111617]/90 px-4 py-2 text-sm font-semibold text-[#f0dcae] hover:bg-[#1c2326]"
+               data-testid="button-toggle-labels">
+                <Icon name={showLabels ? 'fa-eye-slash' : 'fa-tags'} />
+                {showLabels ? 'Hide labels' : 'Click here to see the labels'}
+                </button>
+              )}
             {availability === 'ready' ? (
               <SpecimenViewer species={activeSpecies} command={viewerCommand} attempt={attempt} selectedId={selectedRegionId} onSelect={setSelectedRegionId} onRetry={() => setAttempt((value) => value + 1)} />
             ) : availability === 'checking' ? (
@@ -235,7 +263,7 @@ function App() {
             {availability === 'ready' && (
               <div className="pointer-events-none absolute bottom-4 left-4 z-[4] flex items-center gap-2 rounded border border-white/[.08] bg-[#0d1112]/75 px-2.5 py-1.5 font-mono text-[10px] text-[#aab0a5]">
                 <Icon name="fa-hand-pointer" className="text-[11px]" /> DRAG TO ROTATE <span className="mx-1 text-white/20">/</span> SCROLL TO ZOOM
-                {hotspots.length > 0 && <><span className="mx-1 text-white/20">/</span> CLICK A DOT</>}
+                {hotspots.length > 0 && <><span className="mx-1 text-white/20">/</span>{showLabels ? 'CLICK A DOT' : 'LABELS ARE OFF'}</>}
               </div>
             )}
             {availability === 'ready' && (
@@ -296,6 +324,7 @@ function App() {
                 <InfoRow icon={<Icon name="fa-person-walking" className="text-[12px]" />} label="Movement" value={activeSpecies.movement} />
                 <div className="mt-5 border-t border-white/[.08] pt-4">
                   <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[.12em] text-[#d7ae6d]"><Icon name="fa-wand-magic-sparkles" className="text-[12px]" /> Did you know?</div>
+                  <ModelCredit speciesId={activeSpecies.id} />
                   <p className="text-[12px] leading-[1.6] text-[#c6c6bb]">{activeSpecies.facts[0]}</p>
                 </div>
               </div>
@@ -322,6 +351,8 @@ function App() {
         </aside>
       </div>
       <Credits />
+      <Contact />
+      <HowToDialog open={helpOpen} onClose={closeHelp} />
     </main>
   );
 }

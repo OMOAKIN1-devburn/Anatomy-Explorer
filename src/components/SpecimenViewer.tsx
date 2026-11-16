@@ -1,12 +1,14 @@
-import { Component, Suspense, useEffect, useMemo, useRef } from 'react';
+import { Component, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentRef, ErrorInfo, ReactNode, RefObject } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import type { ThreeEvent } from '@react-three/fiber';
 import { Html, OrbitControls, useAnimations, useGLTF } from '@react-three/drei';
 import { Box3, Group, MathUtils, Vector3 } from 'three';
+import type { Mesh, MeshStandardMaterial } from 'three';
 import type { Hotspot, SpeciesRecord } from '@/data/species';
+import { clone as cloneModel } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
-// Camera limits shared by the mouse wheel (OrbitControls) and the +/- buttons.
+// Camera limits shared by the mouse wheel and the +/- buttons.
 const MIN_DISTANCE = 2.1;
 const MAX_DISTANCE = 8;
 // Every model is scaled so its longest side is about this many scene units.
@@ -14,9 +16,8 @@ const MODEL_TARGET_SIZE = 2.6;
 // The floor of the model sits at this height so it appears to stand on the stage.
 const GROUND_Y = -1.15;
 
-// Set to true while placing dots: click the model and the browser console prints
-// a position and normal you can paste into species.ts. Set back to false when done.
-const HOTSPOT_PLACEMENT_MODE = true;
+// Set to true only while fine-tuning dots: clicking the model copies a position line.
+const HOTSPOT_PLACEMENT_MODE = false;
 
 export type ViewerCommandType = 'zoomIn' | 'zoomOut' | 'reset';
 /** The id changes on every click so pressing the same button twice still fires. */
@@ -33,51 +34,93 @@ type SpecimenViewerProps = {
   onRetry: () => void;
 };
 
-/**
- * Owns the 3D canvas and its recovery boundary, so a WebGL or GLB error
- * cannot take down the rest of the museum interface.
- */
 export function SpecimenViewer({ species, command, attempt, selectedId, onSelect, onRetry }: SpecimenViewerProps) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = wrapRef.current;
+    if (!element) return;
+    // A plain mouse wheel scrolls the page. Hold Ctrl to zoom the model.
+    const block = (event: WheelEvent) => {
+      if (!event.ctrlKey) event.stopPropagation();
+    };
+    element.addEventListener('wheel', block, { capture: true });
+    return () => element.removeEventListener('wheel', block, { capture: true });
+  }, [species.id, attempt]);
   const handleReset = () => {
     // useGLTF caches results, even failed ones, so clear the cache before retrying.
     if (species.modelPath) useGLTF.clear(species.modelPath);
     onRetry();
   };
+  const selected = species.hotspots?.find((hotspot) => hotspot.id === selectedId);
 
-  const selected = species.hotspots?.find((h) => h.id === selectedId);
   return (
-    // The key remounts the whole viewer when the species changes or a retry happens.
     <ViewerErrorBoundary key={`${species.id}-${attempt}`} species={species} onReset={handleReset}>
-      <div className="absolute inset-0 z-[1]">
+      <div ref={wrapRef} className="absolute inset-0 z-[1]">
         <ModelCanvas species={species} command={command} selectedId={selectedId} onSelect={onSelect} />
         {selected && (
           <div className="absolute left-3 top-3 z-10 max-w-[250px] rounded-lg border border-[#e5ad59]/40 bg-[#0c0f18]/90 px-3 py-2 text-xs leading-5 text-[#e9e2d5]">
             <strong className="text-[#e8b56c]">{selected.name}.</strong> {selected.note}
-         </div>
+          </div>
         )}
       </div>
     </ViewerErrorBoundary>
   );
 }
 
-/** Loads the species' GLB, fits it on the stage, and places the clickable dots on it. */
+/** Loads the species' model, fits it on the stage, and places the clickable dots on it. */
 function SpecimenModel({ species, selectedId, onSelect }: { species: SpeciesRecord; selectedId: string | null; onSelect: (hotspotId: string) => void }) {
-  // The viewer is only rendered once modelPath has been checked, so the "!" is safe.
-  const { scene, animations } = useGLTF(species.modelPath!);
+  const { scene: cachedScene, animations } = useGLTF(species.modelPath!);
+  const scene = useMemo(() => cloneModel(cachedScene), [cachedScene]);
   const { actions } = useAnimations(animations, scene);
   const groupRef = useRef<Group>(null);
+  const [pinsReady, setPinsReady] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setPinsReady(true), 200);
+    return () => clearTimeout(timer)
+  }, []);
 
   // Play the clip by its authored name. If the file has no such clip the model simply stays still.
   useEffect(() => {
     const clip = actions[species.idleClip ?? 'idle'];
-    clip?.reset().fadeIn(0.25).play();
+  // clip?.reset().fadeIn(0.25).play();
     return () => { clip?.fadeOut(0.2); };
   }, [actions, species.idleClip]);
 
-  // Measure the model once and work out the scale and offset that fit it on the
-  // stage. The box is kept because dot positions are stored as fractions of it.
+  // Rigged models only: make shiny or glowing materials matte so colours show properly.
+  // It also prints a material report in the F12 console to help find colour problems.
+  useEffect(() => {
+    if (!species.preciseFit) return;
+    const report: Record<string, string | number | boolean>[] = [];
+    scene.traverse((object) => {
+      const mesh = object as Mesh;
+      if (!mesh.isMesh) return;
+      const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const item of list) {
+        const material = item as MeshStandardMaterial;
+        report.push({
+          mesh: mesh.name,
+          material: material.name,
+          hasTexture: Boolean(material.map),
+          color: material.color ? material.color.getHexString() : 'none',
+          metalness: material.metalness,
+          roughness: material.roughness,
+          transparent: material.transparent,
+        });
+        if (material.metalness !== undefined) material.metalness = Math.min(material.metalness, 0.1);
+        if (material.roughness !== undefined) material.roughness = Math.max(material.roughness, 0.8);
+        material.emissive?.set(0x000000);
+        material.needsUpdate = true;
+      }
+    });
+    console.log(`[materials] ${species.id}`, report);
+  }, [scene, species.id, species.preciseFit]);
+
+  // Turn the model to face the viewer, measure it, and work out the scale and
+  // offset that fit it on the stage. Dot positions are fractions of this box.
   const fit = useMemo(() => {
-    const box = new Box3().setFromObject(scene, species.hotspotSpace === 'model');
+    scene.rotation.y = species.rotationY ?? 0;
+    scene.updateMatrixWorld(true);
+    const box = new Box3().setFromObject(scene, species.preciseFit === true);
     const size = box.getSize(new Vector3());
     const center = box.getCenter(new Vector3());
     const longestSide = Math.max(size.x, size.y, size.z) || 1;
@@ -88,41 +131,41 @@ function SpecimenModel({ species, selectedId, onSelect }: { species: SpeciesReco
       -center.z * scale,
     ];
     return { scale, position, box };
-  }, [scene]);
+  }, [scene, species.rotationY, species.preciseFit]);
 
   // Placement helper: turns a click on the model into numbers for species.ts.
   const handleModelClick = (event: ThreeEvent<MouseEvent>) => {
-  if (!HOTSPOT_PLACEMENT_MODE || !groupRef.current || !event.face) return;
-  event.stopPropagation();
-  const local = groupRef.current.worldToLocal(event.point.clone());
-  const size = fit.box.getSize(new Vector3());
-  const round = (value: number) => Math.round(value * 10000) / 10000;
-  const exact = species.hotspotSpace === 'model';
-  const position = exact
-    ? [local.x, local.y, local.z]
-    : [
-        (local.x - fit.box.min.x) / size.x,
-        (local.y - fit.box.min.y) / size.y,
-        (local.z - fit.box.min.z) / size.z,
-      ];
-  const normal = event.face.normal.clone().transformDirection(event.object.matrixWorld);
-  const line = `position: [${position.map(round).join(', ')}], normal: [${[normal.x, normal.y, normal.z].map(round).join(', ')}],`;
-  console.log(`[${species.id}] ${line}`);
-  navigator.clipboard?.writeText(line).catch(() => {});
-};
-return (
-  <group ref={groupRef} position={fit.position} scale={fit.scale}>
-    <primitive object={scene} onClick={handleModelClick} />
-    <HotspotPins hotspots={species.hotspots ?? []} box={fit.box} exact={species.hotspotSpace === 'model'} selectedId={selectedId} onSelect={onSelect} />
-  </group>
-);
+    if (!HOTSPOT_PLACEMENT_MODE || !groupRef.current || !event.face) return;
+    event.stopPropagation();
+    const local = groupRef.current.worldToLocal(event.point.clone());
+    const size = fit.box.getSize(new Vector3());
+    const round = (value: number) => Math.round(value * 100) / 100;
+    const position = [
+      (local.x - fit.box.min.x) / size.x,
+      (local.y - fit.box.min.y) / size.y,
+      (local.z - fit.box.min.z) / size.z,
+    ].map(round);
+    const normal = event.face.normal.clone().transformDirection(event.object.matrixWorld);
+    const line = `position: [${position.join(', ')}], normal: [${[normal.x, normal.y, normal.z].map(round).join(', ')}],`;
+    console.log(`[${species.id}] ${line}`);
+    navigator.clipboard?.writeText(line).catch(() => {});
+  };
+
+  return (
+    <group ref={groupRef} position={fit.position} scale={fit.scale}>
+      <primitive object={scene} onClick={handleModelClick} />
+      {pinsReady && (
+      <HotspotPins hotspots={species.hotspots ?? []} box={fit.box} selectedId={selectedId} onSelect={onSelect} />
+      )}
+    </group>
+  );
 }
 
 /**
- * Draws one pin per hotspot. Pins live inside the model's group, so they turn
- * with it. Every frame, a pin whose surface faces away from the camera is hidden.
+ * Draws the dots. A dot with mirror: true also appears on the other side of the
+ * body. Every frame, a dot whose surface faces away from the camera is hidden.
  */
-function HotspotPins({ hotspots, box, exact, selectedId, onSelect }: { hotspots: Hotspot[]; box: Box3; exact: boolean; selectedId: string | null; onSelect: (hotspotId: string) => void }) {
+function HotspotPins({ hotspots, box, selectedId, onSelect }: { hotspots: Hotspot[]; box: Box3; selectedId: string | null; onSelect: (hotspotId: string) => void }) {
   const camera = useThree((state) => state.camera);
   const groupRef = useRef<Group>(null);
   const pinRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -130,27 +173,34 @@ function HotspotPins({ hotspots, box, exact, selectedId, onSelect }: { hotspots:
 
   const pins = useMemo(() => {
     const size = box.getSize(new Vector3());
-    return hotspots.map((hotspot) => ({
-      hotspot,
-      position: exact
-        ? new Vector3(...hotspot.position)
-        : new Vector3(
-            box.min.x + size.x * hotspot.position[0],
-            box.min.y + size.y * hotspot.position[1],
-            box.min.z + size.z * hotspot.position[2],
-          ),
-      normal: new Vector3(...hotspot.normal).normalize(),
-    }));
-  }, [hotspots, box, exact]);
+    const place = (hotspot: Hotspot, flip: boolean) => {
+      const [px, py, pz] = hotspot.position;
+      const [nx, ny, nz] = hotspot.normal;
+      return {
+        key: flip ? `${hotspot.id}-mirror` : hotspot.id,
+        hotspot,
+        position: new Vector3(
+          box.min.x + size.x * (flip ? 1 - px : px),
+          box.min.y + size.y * py,
+          box.min.z + size.z * pz,
+        ),
+        normal: new Vector3(flip ? -nx : nx, ny, nz).normalize(),
+      };
+    };
+    return hotspots.flatMap((hotspot) =>
+      hotspot.mirror ? [place(hotspot, false), place(hotspot, true)] : [place(hotspot, false)],
+    );
+  }, [hotspots, box]);
 
   useFrame(() => {
     const group = groupRef.current;
     if (!group) return;
     for (const pin of pins) {
-      const element = pinRefs.current[pin.hotspot.id];
+      const element = pinRefs.current[pin.key];
       if (!element) continue;
       group.localToWorld(scratch.world.copy(pin.position));
       scratch.toCamera.copy(camera.position).sub(scratch.world);
+      // Positive dot product means the surface faces the camera.
       const facing = scratch.toCamera.dot(pin.normal) > 0;
       const value = facing ? '1' : '0';
       if (element.dataset.visible !== value) {
@@ -163,21 +213,21 @@ function HotspotPins({ hotspots, box, exact, selectedId, onSelect }: { hotspots:
 
   return (
     <group ref={groupRef}>
-      {pins.map(({ hotspot, position }) => {
+      {pins.map(({ key, hotspot, position }) => {
         const selected = selectedId === hotspot.id;
         return (
-          <Html key={hotspot.id} position={position} center zIndexRange={[20, 0]}>
+          <Html key={key} position={position} center zIndexRange={[20, 0]}>
             <button
               type="button"
-              ref={(element) => { pinRefs.current[hotspot.id] = element; }}
+              ref={(element) => { pinRefs.current[key] = element; }}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => onSelect(hotspot.id)}
               aria-label={`${hotspot.name}: show explanation`}
               title={hotspot.name}
-              className="grid h-10 w-10 cursor-pointer place-items-center transition-opacity"
+              className="hotspot-pin grid h-10 w-10 place-items-center transition-opacity"
             >
-              {selected && <span className="absolute h-7 w-7 animate-ping rounded-full bg-[#e5ad59]/40" />}
-              <span className={`relative rounded-full border-2 border-[#151a1b] ${selected ? 'h-4 w-4 bg-white' : 'h-3.5 w-3.5 bg-[#e5ad59]'}`} />
+              {selected && <span className="absolute h-10 w-10 animate-ping rounded-full bg-[#e5ad59]/40" />}
+              <span className={`relative rounded-full border-2 border-[#151a1b] ${selected ? 'h-6 w-6 bg-white' : 'h-5 w-5 bg-[#e5ad59]'}`} />
             </button>
           </Html>
         );
@@ -199,7 +249,7 @@ function CameraCommands({ command, controlsRef }: { command: ViewerCommand; cont
 
     if (command.type === 'reset') {
       controls.reset();
-      controls.update(); // applies it immediately, so nothing keeps drifting
+      controls.update(); // applies the reset immediately, so nothing keeps drifting
       return;
     }
 
@@ -217,9 +267,7 @@ function ModelCanvas({ species, command, selectedId, onSelect }: { species: Spec
   const controlsRef = useRef<OrbitControlsHandle>(null);
 
   return (
-    // Canvas creates the WebGL renderer. OrbitControls turns pointer drag and
-    // the scroll wheel into camera rotation and distance.
-    <Canvas camera={{ position: [0, 1.2, 5.4], fov: 38 }} dpr={[1, 1.6]} gl={{ antialias: true, alpha: true }}>
+    <Canvas camera={{ position: [0, 1.1, 4.8], fov: 38 }} dpr={[1, 1.6]} gl={{ antialias: true, alpha: true }}>
       <ambientLight intensity={0.55} />
       <directionalLight position={[3, 5, 4]} intensity={1.1} />
       <directionalLight position={[-4, 1, -2]} intensity={0.45} color="#d49a53" />
@@ -247,7 +295,6 @@ class ViewerErrorBoundary extends Component<BoundaryProps, BoundaryState> {
   state: BoundaryState = { failed: false, graphicsUnavailable: false };
 
   static getDerivedStateFromError(error: Error): BoundaryState {
-    // A browser may lack WebGL even when the local GLB file is perfectly valid.
     const graphicsUnavailable = /webgl|graphics context/i.test(error.message);
     return { failed: true, graphicsUnavailable };
   }
@@ -262,7 +309,6 @@ class ViewerErrorBoundary extends Component<BoundaryProps, BoundaryState> {
       return (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#151a1b] px-6 text-center">
           <div className="grid h-11 w-11 place-items-center rounded-full border border-[#714e43] bg-[#352622] text-[#e6a18c]">
-            {/* aria-hidden because the text below carries the meaning. */}
             <i className="fa-solid fa-circle-exclamation text-[20px]" aria-hidden="true" />
           </div>
           <p className="text-sm font-semibold text-[#e9e2d5]">

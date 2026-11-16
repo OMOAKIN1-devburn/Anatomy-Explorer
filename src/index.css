@@ -121,7 +121,7 @@ input:focus-visible {
 /* Desktop gives the collection and notes fixed reading widths while the specimen stage expands. */
 .museum-grid {
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr) 318px;
+  grid-template-columns: 270px minmax(0, 1fr) 340px;
   gap: 18px;
   max-width: 1600px;
   margin: 0 auto;
@@ -155,7 +155,7 @@ input:focus-visible {
       rgba(87, 104, 77, 0.16),
       transparent 45%
     ),
-    #151a1b;
+    rgba(8, 11, 20, 0.95);
 }
 .specimen-stage:before {
   content: "";
@@ -491,4 +491,31 @@ input:focus-visible {
     right: -10%;
     opacity: 0.75;
   }
+}
+
+/* Bigger, bolder, easier-to-read text on every device. */
+html {
+  font-size: 106.25%;
+}
+body {
+  font-weight: 500;
+}
+:root {
+  --muted-foreground: 215 12% 74%;
+}
+[class*="text-[9px]"],
+[class*="text-[10px]"] {
+  font-size: 12px !important;
+}
+[class*="text-[11px]"] {
+  font-size: 13px !important;
+}
+[class*="text-[12px]"],
+[class*="text-[13px]"] {
+  font-size: 14px !important;
+}
+
+/* Labels toggle: dots stay hidden until the visitor turns them on. */
+.labels-off .hotspot-pin {
+  display: none !important;
 }
