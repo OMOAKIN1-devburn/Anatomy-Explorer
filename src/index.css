@@ -76,6 +76,7 @@
 html {
   min-width: 320px;
   background: hsl(var(--background));
+  scrollbar-gutter: stable;
 }
 body {
   margin: 0;

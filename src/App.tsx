@@ -7,6 +7,7 @@ import { Credits, ModelCredit } from './components/Credits';
 import { Contact } from './components/Contact';
 import { usePersistentState } from './hooks/usePersistentState';
 import { HowToDialog } from './components/HowToDialog';
+import { HelpButton } from './components/HelpButton';
 
 type Availability = 'checking' | 'ready' | 'missing' | 'error';
 
@@ -56,8 +57,6 @@ const closeHelp = () => {
   const [viewerCommand, setViewerCommand] = useState<ViewerCommand>(null);
 
   // Toggles the short explanatory panel in the header.
-  const [showAbout, setShowAbout] = useState(false);
-
   const activeSpecies = species.find((item) => item.id === activeSpeciesId) ?? species[0];
   const hotspots = activeSpecies.hotspots ?? [];
   const selectedHotspot = hotspots.find((hotspot) => hotspot.id === selectedRegionId);
@@ -126,18 +125,9 @@ const closeHelp = () => {
             <div className="hidden items-center gap-2 rounded-full border border-[#778b78]/20 bg-[#415848]/10 px-3 py-1.5 text-[10px] tracking-wide text-[#a9baa5] sm:flex">
               <span className="h-1.5 w-1.5 rounded-full bg-[#87a47c]" /> LEARNING COLLECTION
             </div>
-            <button
-              aria-label="About this museum"
-              title="About this museum"
-              className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-[#b1b2a9] hover:bg-white/5"
-              data-testid="button-about"
-              onClick={() => setHelpOpen(true)}
-            >
-              <Icon name="fa-circle-question" className="text-[16px]" />
-            </button>
+            <HelpButton onClick={() => setHelpOpen(true)} />
           </div>
         </div>
-        {showAbout && <div className="border-t border-white/10 bg-[#171b1c] px-5 py-3 text-center text-xs text-[#b3b4aa]">An exploratory anatomy collection. 3D models and layer views appear only when verified assets are available.</div>}
       </header>
 
       <div className="museum-grid">
@@ -262,7 +252,7 @@ const closeHelp = () => {
             {/* Controls hint is only shown when there is actually a model to control. */}
             {availability === 'ready' && (
               <div className="pointer-events-none absolute bottom-4 left-4 z-[4] flex items-center gap-2 rounded border border-white/[.08] bg-[#0d1112]/75 px-2.5 py-1.5 font-mono text-[10px] text-[#aab0a5]">
-                <Icon name="fa-hand-pointer" className="text-[11px]" /> DRAG TO ROTATE <span className="mx-1 text-white/20">/</span> SCROLL TO ZOOM
+                <Icon name="fa-hand-pointer" className="text-[11px]" /> DRAG TO ROTATE <span className="mx-1 text-white/20">/</span> CTRL + SCROLL TO ZOOM
                 {hotspots.length > 0 && <><span className="mx-1 text-white/20">/</span>{showLabels ? 'CLICK A DOT' : 'LABELS ARE OFF'}</>}
               </div>
             )}
@@ -324,8 +314,8 @@ const closeHelp = () => {
                 <InfoRow icon={<Icon name="fa-person-walking" className="text-[12px]" />} label="Movement" value={activeSpecies.movement} />
                 <div className="mt-5 border-t border-white/[.08] pt-4">
                   <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[.12em] text-[#d7ae6d]"><Icon name="fa-wand-magic-sparkles" className="text-[12px]" /> Did you know?</div>
-                  <ModelCredit speciesId={activeSpecies.id} />
                   <p className="text-[12px] leading-[1.6] text-[#c6c6bb]">{activeSpecies.facts[0]}</p>
+                  <ModelCredit speciesId={activeSpecies.id} />
                 </div>
               </div>
             )}

@@ -120,21 +120,8 @@ export function ModelCredit({ speciesId }: { speciesId: string }) {
 
 export function Credits() {
   return (
-    <footer className="mx-auto max-w-[1600px] px-[30px] pb-10 text-xs leading-6">
-      <div className="rounded-x1 border border-white/10 bg-[#0c0f18]/90 p-5 text-[#d8d1c2]">
-      <h2 className="font-mono mb-2 text-[11px] uppercase tracking-widest text-[#e8b56c]">Credits</h2>
-      <ul className="space-y-1">
-        {CREDITS.map((c) => (
-          <li key={c.sourceUrl}>
-            “<a className={link} href={c.sourceUrl} target="_blank" rel="noopener noreferrer">{c.title}</a>” by{' '}
-            <a className={link} href={c.authorUrl} target="_blank" rel="noopener noreferrer">{c.author}</a>, licensed under{' '}
-            <a className={link} href={c.licenseUrl} target="_blank" rel="noopener noreferrer">{c.license}</a>.
-            Converted and resized for web display.
-          </li>
-        ))}
-      </ul>
-      <p className="mt-2">Icons by Font Awesome Free. 3D rendering with Three.js.</p>
-      </div>
+    <footer className="mx-auto max-w-[1600px] px-[30px] pb-10 text-center text-sm leading-6 text-[#d8d1c2]">
+      <p>Each specimen's 3D model credit is shown with its profile. Icons by Font Awesome Free. 3D rendering with Three.js.</p>
     </footer>
   );
 }

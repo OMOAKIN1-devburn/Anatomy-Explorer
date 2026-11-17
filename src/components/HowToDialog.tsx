@@ -8,24 +8,24 @@ const STEPS = [
 ] as const;
 
 export function HowToDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  // Stop the page behind the guide from scrolling while it is open.
   useEffect(() => {
     if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 px-4">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="howto-title"
-        onClick={(event) => event.stopPropagation()}
         className="panel max-h-[90dvh] w-full max-w-lg overflow-y-auto p-6"
       >
         <p className="font-mono text-xs uppercase tracking-[.16em] text-[#e5ad59]">Quick guide</p>
