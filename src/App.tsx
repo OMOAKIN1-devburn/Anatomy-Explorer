@@ -8,6 +8,7 @@ import { Contact } from './components/Contact';
 import { usePersistentState } from './hooks/usePersistentState';
 import { HowToDialog } from './components/HowToDialog';
 import { HelpButton } from './components/HelpButton';
+import { TextSizeControl } from './components/TextSizeControl';
 
 type Availability = 'checking' | 'ready' | 'missing' | 'error';
 
@@ -125,6 +126,7 @@ const closeHelp = () => {
             <div className="hidden items-center gap-2 rounded-full border border-[#778b78]/20 bg-[#415848]/10 px-3 py-1.5 text-[10px] tracking-wide text-[#a9baa5] sm:flex">
               <span className="h-1.5 w-1.5 rounded-full bg-[#87a47c]" /> LEARNING COLLECTION
             </div>
+            <TextSizeControl />
             <HelpButton onClick={() => setHelpOpen(true)} />
           </div>
         </div>

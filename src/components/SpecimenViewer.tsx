@@ -2,7 +2,7 @@ import { Component, Suspense, useEffect, useMemo, useRef, useState } from 'react
 import type { ComponentRef, ErrorInfo, ReactNode, RefObject } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import type { ThreeEvent } from '@react-three/fiber';
-import { Html, OrbitControls, useAnimations, useGLTF } from '@react-three/drei';
+import { Html, OrbitControls, useAnimations, useGLTF, useProgress } from '@react-three/drei';
 import { Box3, Group, MathUtils, Vector3 } from 'three';
 import type { Mesh, MeshStandardMaterial } from 'three';
 import type { Hotspot, SpeciesRecord } from '@/data/species';
@@ -263,23 +263,28 @@ function CameraCommands({ command, controlsRef }: { command: ViewerCommand; cont
   return null;
 }
 
+function LoadingLabel() {
+  const { progress } = useProgress();
+  return (
+    <Html center>
+      <div className="whitespace-nowrap rounded-md border border-white/10 bg-[#111617]/90 px-3 py-2 text-xs text-[#d8d1c2]">
+        <i className="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true" />Preparing specimen… {Math.round(progress)}%
+      </div>
+    </Html>
+  );
+}
+
 function ModelCanvas({ species, command, selectedId, onSelect }: { species: SpeciesRecord; command: ViewerCommand; selectedId: string | null; onSelect: (hotspotId: string) => void }) {
   const controlsRef = useRef<OrbitControlsHandle>(null);
+  const boost = species.lightBoost ?? 1;
 
   return (
     <Canvas camera={{ position: [0, 1.1, 4.8], fov: 38 }} dpr={[1, 1.6]} gl={{ antialias: true, alpha: true }}>
-      <ambientLight intensity={0.55} />
-      <directionalLight position={[3, 5, 4]} intensity={1.1} />
-      <directionalLight position={[-4, 1, -2]} intensity={0.45} color="#d49a53" />
-      <Suspense
-        fallback={
-          <Html center>
-            <div className="whitespace-nowrap rounded-md border border-white/10 bg-[#111617]/90 px-3 py-2 text-xs text-[#d8d1c2]">
-              <i className="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true" />Preparing specimen…
-            </div>
-          </Html>
-        }
-      >
+      <ambientLight intensity={0.55 * boost} />
+      <directionalLight position={[3, 5, 4]} intensity={1.1 * boost} />
+      <directionalLight position={[-4, 1, -2]} intensity={0.45 * boost} color="#d49a53" />
+      {boost > 1 && <directionalLight position={[0, 2, 6]} intensity={0.6 * boost} />}
+      <Suspense fallback={<LoadingLabel />}>
         <SpecimenModel species={species} selectedId={selectedId} onSelect={onSelect} />
       </Suspense>
       <OrbitControls ref={controlsRef} enablePan={false} enableDamping={false} minDistance={MIN_DISTANCE} maxDistance={MAX_DISTANCE} target={[0, 0, 0]} />

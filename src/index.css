@@ -520,3 +520,83 @@ body {
 .labels-off .hotspot-pin {
   display: none !important;
 }
+
+:root {
+  --text-scale: 1;
+  --phone-boost: 1;
+}
+@media (max-width: 760px), ((pointer: coarse) and (max-width: 1120px)) {
+  :root {
+    --phone-boost: 1.35;
+  }
+}
+html {
+  font-size: calc(100% * var(--phone-boost) * var(--text-scale));
+}
+.text-\[9px\] {
+  font-size: calc(9px * var(--phone-boost) * var(--text-scale));
+}
+.text-\[10px\] {
+  font-size: calc(10px * var(--phone-boost) * var(--text-scale));
+}
+.text-\[11px\] {
+  font-size: calc(11px * var(--phone-boost) * var(--text-scale));
+}
+.text-\[12px\] {
+  font-size: calc(12px * var(--phone-boost) * var(--text-scale));
+}
+.text-\[13px\] {
+  font-size: calc(13px * var(--phone-boost) * var(--text-scale));
+}
+.text-\[16px\] {
+  font-size: calc(16px * var(--phone-boost) * var(--text-scale));
+}
+.text-\[21px\] {
+  font-size: calc(21px * var(--phone-boost) * var(--text-scale));
+}
+.text-\[25px\] {
+  font-size: calc(25px * var(--phone-boost) * var(--text-scale));
+}
+.text-\[14px\] {
+  font-size: calc(14px * var(--phone-boost) * var(--text-scale));
+}
+.text-\[20px\] {
+  font-size: calc(20px * var(--phone-boost) * var(--text-scale));
+}
+.text-\[22px\] {
+  font-size: calc(22px * var(--phone-boost) * var(--text-scale));
+}
+.text-\[24px\] {
+  font-size: calc(24px * var(--phone-boost) * var(--text-scale));
+}
+
+@media (min-width: 761px) and (max-width: 1120px) and (pointer: fine) {
+  .species-panel {
+    grid-row: 1 / span 2;
+    align-self: start;
+  }
+  .viewer-panel {
+    align-self: start;
+  }
+}
+
+.info-panel,
+.info-panel * {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px), ((pointer: coarse) and (max-width: 1120px)) {
+  .topbar {
+    position: static !important;
+  }
+  .topbar-inner {
+    height: auto !important;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+  }
+  .topbar-inner > div:last-child {
+    flex-wrap: wrap;
+  }
+}

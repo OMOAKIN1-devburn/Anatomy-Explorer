@@ -48,6 +48,8 @@ export type SpeciesRecord = {
   rotationY?: number;
   /** Only enable a layer when its actual geometry is present in the linked asset. */
   availableLayers?: AnatomyLayer[];
+  /** Multiplies the stage lights for this species. Use above 1 for dark models. */
+  lightBoost?: number;
 };
 
 export const species: SpeciesRecord[] = [
@@ -555,6 +557,7 @@ export const species: SpeciesRecord[] = [
     scientificName: "Hippopotamus amphibius",
     className: "Mammal · Hippopotamidae",
     icon: "fa-hippo",
+    lightBoost: 1.8,
     habitat: "Rivers, lakes, and nearby grasslands",
     range: "Sub-Saharan Africa",
     diet: "Herbivore",
