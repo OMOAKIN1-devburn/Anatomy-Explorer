@@ -1,0 +1,119 @@
+1. Replace All in App.tsx
+Click inside App.tsx and press Ctrl + H.
+Check that the regex button (.*) is on. The Find box should hold text-\[(\d+(?:\.\d+)?)px\] and the Replace box should hold text-[length:calc($1px*var(--phone-boost)*var(--text-scale))].
+Click Replace All (or press Ctrl + Alt + Enter), then Ctrl + S.
+Check that nothing was missed. Press Ctrl + Shift + F, keep regex on, and search text-\[\d. It should show no results.
+Running it a second time is safe, because the new text no longer matches the pattern.
+2. Why the link says “Page not found”
+
+In your VS Code photo, og-image.jpg is inside public\models, next to the animal folders. It has to be inside public itself, because the site address /og-image.jpg only finds files in public. This is the main reason for the 404, and it also has to be pushed before it can load.
+
+Move it:
+
+In File Explorer, open Anatomy Explorer\public\models.
+Right-click og-image.jpg and choose Cut.
+Click the public folder in the address bar to go up one level, then Paste.
+In VS Code, the file should now sit beside models, not inside it.
+3. Your image size is fine
+819 × 460 and 76 KB is good. WhatsApp wants it under about 300 KB, and you’re far under that.
+You don’t need 1200 × 630. Keep what you made, since it doesn’t cover the lion’s face.
+Optional: in index.html, under the og:image meta tag (after line 29), add these three lines. They help apps read the picture correctly:
+html
+<meta property="og:image:width" content="819" />
+<meta property="og:image:height" content="460" />
+<meta property="og:image:alt" content="Wildlife Anatomy Museum showing a 3D lion" />
+4. Then check and push
+Run npm run dev -- --host and check the phone in both modes. All the text should grow with A+ now, including the descriptions.
+Run npm run build. If it finishes without red errors:
+git add .
+git commit -m "Share preview image, scalable text and mobile fixes"
+git push
+Wait about two minutes, then open https://wildlife-anatomy-museum.netlify.app/og-image.jpg. It should show your picture.
+For WhatsApp, send yourself https://wildlife-anatomy-museum.netlify.app/?v=2, because WhatsApp remembers the old preview.
+
+I still need the “Click here to see the labels” photo to fix the button covering the note card. Search Click here to see the labels in App.tsx and send me that part. I also still haven’t seen your model sizes, so run the size command again when you can.
+
+So I'll cut it and pasted it here. Is this what you mean?
+
+Yes, that’s right. Your photos show og-image now sits directly inside public, next to the models folder, and the models folder only has the animal folders.
+
+Next steps
+Check VS Code. In the Explorer, og-image.jpg should appear right under public, at the same level as models and not inside it.
+Check the text replacement. Press Ctrl + Shift + F, keep regex on, and search text-\[\d. It should say no results. If it lists anything, tell me.
+Build. In the terminal, run:
+npm run build
+
+Wait for it to finish. No red errors means you’re good.
+4. Push.
+
+git add .
+git commit -m "Move share image to public, scalable text and mobile fixes"
+git push
+Wait about two minutes, then open this on your phone:
+https://wildlife-anatomy-museum.netlify.app/og-image.jpg
+It should show your lion picture. If you still see “Page not found”, tell me.
+Test WhatsApp. Send yourself https://wildlife-anatomy-museum.netlify.app/?v=2, because WhatsApp remembers the old preview for the plain link.
+Test the phone
+
+After the deploy, check the live link on your phone in both modes:
+
+the text grows with A+
+the empty space under the body-part note is gone
+the How it works pop-up opens at the top
+
+Still waiting from you:
+
+the photo of the “Click here to see the labels” button code (search that text in App.tsx)
+your model sizes, from the Get-ChildItem command
+
+For this one
+
+"Click here to see the labels" covering the note
+I haven't seen that button's code. In App.tsx, press Ctrl+F, search Click here to see the labels, and send me a photo of that button and the lines around it. I'll give you the exact fi
+
+I can see the cause now. That button is sized in rem (text-sm), so on a phone it gets multiplied by the phone boost and by A+, and it can grow wider than half the screen. It sits at the top (right-3 top-3) right where the note card is. Your photo also confirms the text replacement worked in App.tsx, because the classes now read text-[length:calc(...)].
+
+The fix is to move that button to the bottom-left on touch screens, where nothing else sits once the hint bar is hidden, and limit its width so it leaves room for the zoom buttons.
+
+Edit 1: App.tsx
+Press Ctrl+F and search absolute right-3 top-3. It’s on line 210 in your photo, inside the <button that has data-testid="button-toggle-labels".
+Add labels-toggle  at the very start of that className. It should now begin:
+tsx
+className="labels-toggle absolute right-3 top-3 z-[5] flex items-center gap-2 ...
+
+Leave everything else on that line as it is.
+
+Edit 2: index.css
+
+Press Ctrl + End and paste this at the very bottom:
+
+css
+@media (pointer: coarse) {
+  .labels-toggle {
+    top: auto !important;
+    right: auto !important;
+    bottom: 0.75rem !important;
+    left: 0.75rem !important;
+    max-width: calc(100% - 7rem);
+    text-align: left;
+    line-height: 1.25;
+  }
+}
+Laptops keep the button at the top right, as it is now.
+Phones, in both normal and Desktop mode, get it at the bottom-left, with its width limited so it can’t run into the zoom buttons.
+Edit 3: check the hint bar
+
+The hint bar also sits at the bottom-left, so it must be hidden on phones or the two will collide. Check that you did the earlier step:
+
+In App.tsx, search absolute bottom-4 left-4. The className should start with hint-bar .
+In index.css, search .hint-bar. You should find @media (pointer: coarse) { .hint-bar { display: none; } }.
+If either is missing, tell me and I’ll give you the exact lines again.
+Test
+
+Save, then run npm run dev -- --host and open it on your phone:
+
+the labels button sits at the bottom-left and doesn’t cover the note card at the top
+the zoom buttons are free on the right
+at 180% the button wraps onto two lines instead of covering things
+
+Send me a screenshot of your phone in each mode before you push. Then we run npm run build and push. Your model sizes are still the one thing I haven’t seen.

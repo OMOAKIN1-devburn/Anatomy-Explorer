@@ -4,8 +4,8 @@ export function MiniBlueprint() {
         <div className="wireframe relative mt-4 overflow-hidden rounded-lg p-3"
         aria-label="Small wireframe preview of the planned museum interface" data-testid="preview-wireframe">
             <div className="mb-2 flex items-center justify-between">
-                <span className="font-mono text-[9px] uppercase tracking-[.16em] text-[#dcb16e]">Interface study . v.01</span>
-                <span className="font-mono text-[9px] text-[#7d8580]">SCHEMATIC</span>
+                <span className="font-mono text-[length:calc(9px*var(--phone-boost)*var(--text-scale))] uppercase tracking-[.16em] text-[#dcb16e]">Interface study . v.01</span>
+                <span className="font-mono text-[length:calc(9px*var(--phone-boost)*var(--text-scale))] text-[#7d8580]">SCHEMATIC</span>
             </div>
             <svg viewBox="0 0 250 118" className="block w-full" role="img" aria-label="Wireframe showing collection, specimen viewer, and species information panel">
                 <rect x="1" y="1" width="248" height="116" rx="5" fill="none" stroke="#6a6250" strokeOpacity=".55" />

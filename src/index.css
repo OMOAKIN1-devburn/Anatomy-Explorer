@@ -570,7 +570,7 @@ html {
   font-size: calc(24px * var(--phone-boost) * var(--text-scale));
 }
 
-@media (min-width: 761px) and (max-width: 1120px) and (pointer: fine) {
+@media (min-width: 761px) and (max-width: 1120px) {
   .species-panel {
     grid-row: 1 / span 2;
     align-self: start;
@@ -598,5 +598,23 @@ html {
   }
   .topbar-inner > div:last-child {
     flex-wrap: wrap;
+  }
+}
+
+@media (pointer: coarse) {
+  .hint-bar {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .labels-toggle {
+    top: auto !important;
+    right: auto !important;
+    bottom: 0.75rem !important;
+    left: 0.75rem !important;
+    max-width: calc(100% - 7rem);
+    text-align: left;
+    line-height: 1.25;
   }
 }

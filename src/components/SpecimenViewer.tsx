@@ -314,7 +314,7 @@ class ViewerErrorBoundary extends Component<BoundaryProps, BoundaryState> {
       return (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#151a1b] px-6 text-center">
           <div className="grid h-11 w-11 place-items-center rounded-full border border-[#714e43] bg-[#352622] text-[#e6a18c]">
-            <i className="fa-solid fa-circle-exclamation text-[20px]" aria-hidden="true" />
+            <i className="fa-solid fa-circle-exclamation text-[length:calc(20px*var(--phone-boost)*var(--text-scale))]" aria-hidden="true" />
           </div>
           <p className="text-sm font-semibold text-[#e9e2d5]">
             {this.state.graphicsUnavailable ? '3D graphics are unavailable' : 'This model could not be opened'}
