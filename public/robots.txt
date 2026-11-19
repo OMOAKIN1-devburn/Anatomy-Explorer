@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://wildlife-anatomy-museum.netlify.app/sitemap.xml
