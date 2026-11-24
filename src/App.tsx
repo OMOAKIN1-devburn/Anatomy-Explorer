@@ -135,16 +135,16 @@ const closeHelp = () => {
       <div className="museum-grid">
         {/* ---------- Left: searchable collection ---------- */}
         <aside className="species-panel panel flex min-h-[680px] flex-col p-4" aria-label="Species collection">
-          <div className="mb-4 flex items-end justify-between">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
             <div>
               <div className="font-mono text-[length:calc(10px*var(--phone-boost)*var(--text-scale))] uppercase tracking-[.2em] text-[#d8a95f]">Explore</div>
               <h1 className="mt-1 font-display text-[length:calc(21px*var(--phone-boost)*var(--text-scale))] text-[#eee7d9]">The collection</h1>
             </div>
-            <span className="font-mono text-[length:calc(11px*var(--phone-boost)*var(--text-scale))] text-[#939a92]">{species.length} species</span>
+            <span className="whitespace-nowrap font-mono text-[length:calc(11px*var(--phone-boost)*var(--text-scale))] text-[#939a92]">{species.length} species</span>
           </div>
           <label className="relative mb-3 block">
             <Icon name="fa-magnifying-glass" className="absolute left-3 top-1/2 -translate-y-1/2 text-[length:calc(13px*var(--phone-boost)*var(--text-scale))] text-[#8e948d]" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a species…" aria-label="Search species" className="h-10 w-full rounded-md border border-white/10 bg-[#111516] pl-9 pr-3 text-xs text-[#e4e0d5] placeholder:text-[#868c87]" data-testid="input-species-search" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" aria-label="Search species" className="h-10 w-full rounded-md border border-white/10 bg-[#111516] pl-9 pr-3 text-xs text-[#e4e0d5] placeholder:text-[#868c87]" data-testid="input-species-search" />
           </label>
           <label className="relative mb-4 block">
             <select value={habitatFilter} onChange={(event) => setHabitatFilter(event.target.value)} className="h-9 w-full appearance-none rounded-md border border-white/10 bg-[#171b1c] px-3 pr-8 text-[length:calc(11px*var(--phone-boost)*var(--text-scale))] text-[#bfc1b7]" aria-label="Filter by habitat" data-testid="select-habitat">
@@ -301,9 +301,9 @@ const closeHelp = () => {
             <span className="mt-3 inline-flex rounded-sm border border-white/10 bg-white/[.035] px-2 py-1 font-mono text-[length:calc(10px*var(--phone-boost)*var(--text-scale))] uppercase tracking-[.08em] text-[#b4b6ac]">{activeSpecies.className}</span>
           </div>
 
-          <div role="tablist" aria-label="Species information" className="flex border-b border-white/[.07] px-4">
+          <div role="tablist" aria-label="Species information" className="overflow-x-auto flex border-b border-white/[.07] px-4">
             {TABS.map((tab) => (
-              <button key={tab.id} id={`tab-${tab.id}`} role="tab" aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`} onClick={() => setActiveTab(tab.id)} className={`tab-button flex-1 py-3 text-[length:calc(11px*var(--phone-boost)*var(--text-scale))] ${activeTab === tab.id ? 'selected' : 'text-[#9ca39b] hover:text-[#d6d2c7]'}`} data-testid={`tab-${tab.id}`}>{tab.label}</button>
+              <button key={tab.id} id={`tab-${tab.id}`} role="tab" aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`} onClick={() => setActiveTab(tab.id)} className={`tab-button flex-auto whitespace-nowrap px-3 py-3 text-[length:calc(11px*var(--phone-boost)*var(--text-scale))] ${activeTab === tab.id ? 'selected' : 'text-[#9ca39b] hover:text-[#d6d2c7]'}`} data-testid={`tab-${tab.id}`}>{tab.label}</button>
             ))}
           </div>
 
