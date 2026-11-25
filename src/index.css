@@ -122,7 +122,9 @@ input:focus-visible {
 /* Desktop gives the collection and notes fixed reading widths while the specimen stage expands. */
 .museum-grid {
   display: grid;
-  grid-template-columns: 270px minmax(0, 1fr) 340px;
+  grid-template-columns:
+    min(calc(270px * var(--text-scale, 1)), 30vw) minmax(0, 1fr)
+    340px;
   gap: 18px;
   max-width: 1600px;
   margin: 0 auto;
@@ -245,13 +247,16 @@ input:focus-visible {
 }
 @media (max-width: 1120px) {
   .museum-grid {
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: min(calc(220px * var(--text-scale, 1)), 42vw) minmax(
+        0,
+        1fr
+      );
   }
   .info-panel {
     grid-column: 2;
   }
 }
-@media (max-width: 1120px) {
+@media (max-width: 760px) {
   .museum-grid {
     display: flex;
     flex-direction: column;
@@ -617,4 +622,18 @@ html {
     text-align: left;
     line-height: 1.25;
   }
+}
+
+/*Let the top bar grow when the text size is increased */
+.topbar-inner {
+  height: auto !important;
+  min-height: 68px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.topbar-inner button {
+  white-space: nowrap;
 }
